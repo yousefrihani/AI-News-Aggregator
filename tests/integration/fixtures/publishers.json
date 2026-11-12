@@ -1,0 +1,7 @@
+{
+  "data": [
+    {"uuid": "pub-1", "name": "Example News", "domain": "example.com"},
+    {"uuid": "pub-2", "name": "Sample Wire", "domain": "sample.example"}
+  ],
+  "meta": {"total": 2}
+}
