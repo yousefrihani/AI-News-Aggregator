@@ -1,0 +1,7 @@
+{
+  "data": [
+    {"uuid": "topic-1", "name": "technology", "slug": "technology"},
+    {"uuid": "topic-2", "name": "business", "slug": "business"}
+  ],
+  "meta": {"total": 2}
+}

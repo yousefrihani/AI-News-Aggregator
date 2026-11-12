@@ -1,0 +1,23 @@
+{
+  "data": [
+    {
+      "uuid": "news-1",
+      "title": "AI Breakthrough Announced",
+      "url": "https://example.com/news/ai-breakthrough",
+      "source": "Example News",
+      "published_at": "2026-01-02T03:04:05Z",
+      "description": "A short summary of the first article.",
+      "topics": ["technology", "ai"]
+    },
+    {
+      "uuid": "news-2",
+      "title": "Chips Market Update",
+      "url": "https://example.com/news/chips-market",
+      "source": "Sample Wire",
+      "published_at": "2026-01-03T04:05:06+00:00",
+      "description": "A short summary of the second article.",
+      "topics": ["technology", "business"]
+    }
+  ],
+  "meta": {"total": 2, "offset": 0, "limit": 2}
+}

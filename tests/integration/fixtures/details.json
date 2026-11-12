@@ -1,0 +1,11 @@
+{
+  "data": {
+    "uuid": "news-1",
+    "title": "AI Breakthrough Announced",
+    "url": "https://example.com/news/ai-breakthrough",
+    "source": "Example News",
+    "published_at": "2026-01-02T03:04:05Z",
+    "description": "A short summary of the first article.",
+    "content": "Full article body text used by the contract test."
+  }
+}

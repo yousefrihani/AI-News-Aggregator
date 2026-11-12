@@ -13,7 +13,6 @@ source = { editable = "." }
 dependencies = [
     { name = "httpx" },
     { name = "python-dotenv" },
-    { name = "requests" },
 ]
 
 [package.optional-dependencies]
@@ -31,7 +30,6 @@ requires-dist = [
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11" },
     { name = "pip-audit", marker = "extra == 'dev'", specifier = ">=2.7" },
     { name = "python-dotenv", specifier = ">=1.0" },
-    { name = "requests", specifier = ">=2.31" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },
 ]
 provides-extras = ["dev"]

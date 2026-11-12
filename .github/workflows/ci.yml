@@ -1,0 +1,58 @@
+# Continuous integration for AI-News-Aggregator.
+#
+# All checks run offline against mocked HTTP fixtures; no API keys or other
+# secrets are configured in CI. The opt-in live E2E test stays skipped because
+# RUN_E2E is never set here.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: lint, types, tests, audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --all-extras --frozen
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format
+        run: uv run ruff format --check .
+
+      - name: Mypy
+        run: uv run mypy Articles
+
+      - name: Test suite (offline, sockets blocked)
+        run: uv run python -m tests.offline
+
+      - name: Coverage
+        run: |
+          uv run coverage run -m unittest discover -s tests
+          uv run coverage report --fail-under=80
+
+      - name: Dependency audit
+        run: uv run pip-audit --local

@@ -1,1 +1,1 @@
-Category = 'technology'
+Category = "technology"
