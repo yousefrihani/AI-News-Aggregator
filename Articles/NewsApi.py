@@ -15,12 +15,8 @@ try:
 except ImportError:
     pass
 
-try:
-    from Articles.BaseProvider import BaseProvider
-    from Articles.Vars import Category
-except ImportError:
-    from BaseProvider import BaseProvider
-    from Vars import Category
+from Articles.BaseProvider import BaseProvider
+from Articles.Vars import Category
 
 
 DEFAULT_BASE_URL = "https://api.freenewsapi.io/v1"

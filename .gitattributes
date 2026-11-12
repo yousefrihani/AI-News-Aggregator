@@ -1,0 +1,16 @@
+# Normalize line endings in the repository.
+* text=auto eol=lf
+
+# Source, docs, config and data files are always LF.
+*.py text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.lock text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.txt text eol=lf
+
+# Windows-native scripts keep CRLF so cmd.exe/PowerShell parse them correctly.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
