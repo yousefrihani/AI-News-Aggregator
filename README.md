@@ -77,6 +77,39 @@ python -m unittest discover -s tests
 Unit tests are mocked and need no API keys; the offline network guard keeps
 real sockets out of the suite. Live end-to-end tests are opt-in via `RUN_E2E=1`.
 
+## Command line
+
+```bash
+# after `uv sync`
+uv run python -m Articles --limit 10
+uv run python -m Articles --limit 10 --json
+uv run python -m Articles --limit 5 --query "agentic AI" --json
+```
+
+The CLI exits `2` on missing credentials or a provider error, and `0` on a
+successful run (including an empty result).
+
+## Docker
+
+Build and run the runtime image:
+
+```bash
+docker build -t ai-news-aggregator:0.3.0 .
+docker run --rm --env-file .env ai-news-aggregator:0.3.0 --limit 10 --json
+```
+
+Or use Compose (it reads `.env` for interpolation; no secrets are baked in):
+
+```bash
+docker compose build
+docker compose run --rm app --limit 10 --json
+# containerised test suite (sockets blocked, no API keys)
+docker compose --profile test run --rm test
+```
+
+The runtime image is multi-stage, runs as a non-root user, and is compatible
+with a read-only root filesystem (`/tmp` is mounted as tmpfs by Compose).
+
 ## Environment variables
 
 | Variable | Default | Purpose |
@@ -86,13 +119,13 @@ real sockets out of the suite. Live end-to-end tests are opt-in via `RUN_E2E=1`.
 | `NEWSAPI_KEY` | — | Second fallback key, checked last. |
 | `SEMANTIC_SCHOLAR_API_KEY` | — | Reserved for future paper ingestion; currently unused. |
 | `RUN_E2E` | `0` | Set to `1` to enable live end-to-end tests. |
-| `HTTP_CONNECT_TIMEOUT` | `3.0` | Connect timeout in seconds. |
-| `HTTP_READ_TIMEOUT` | `10.0` | Read timeout in seconds. |
-| `HTTP_WRITE_TIMEOUT` | `10.0` | Write timeout in seconds. |
-| `HTTP_POOL_TIMEOUT` | `3.0` | Connection-pool timeout in seconds. |
-| `HTTP_MAX_CONNECTIONS` | `20` | Maximum connections per provider client. |
-| `HTTP_MAX_KEEPALIVE_CONNECTIONS` | `10` | Maximum idle keep-alive connections. |
-| `HTTP_MAX_CONCURRENCY` | `5` | Per-provider concurrent-request limit. |
+| `AI_NEWS_HTTP_TIMEOUT` | `10.0` | Read/write timeout in seconds. |
+| `AI_NEWS_MAX_CONCURRENCY` | `5` | Per-provider concurrent-request limit. |
+| `AI_NEWS_MAX_PAGES` | `10` | Upper bound on pagination loops. |
+| `AI_NEWS_MAX_ITEMS` | `500` | Upper bound on items fetched per provider call. |
+| `AI_NEWS_PAGE_SIZE` | `50` | Items requested per pagination page. |
+| `AI_NEWS_TOPICS` | `technology` | Comma-separated default topics. |
+| `ARTICLE_LIMIT` | `20` | Compose-only: articles requested by the `app` service. |
 
 API keys are never logged and must never be committed. `.env.example` contains
 placeholders only.
@@ -107,9 +140,11 @@ placeholders only.
 ## Roadmap
 
 - [x] Provider abstraction and `unittest` baseline.
-- [ ] Async-first HTTP (`httpx`) with timeouts, connection pooling, retries, and bounded pagination.
-- [ ] Normalized `Article` / `Paper` models and typed provider errors.
-- [ ] `Aggregator` with concurrent fan-out, de-duplication, sorting, and partial-failure isolation.
-- [ ] Offline network guard, integration fixtures, and CI (lint, type-check, tests).
+- [x] Async-first HTTP (`httpx`) with timeouts, connection pooling, retries, and bounded pagination.
+- [x] Normalized `Article` / `Paper` models and typed provider errors.
+- [x] `Aggregator` with concurrent fan-out, de-duplication, sorting, and partial-failure isolation.
+- [x] Offline network guard, integration fixtures, and CI (lint, type-check, tests).
+- [x] CLI entry point as the sync boundary.
+- [x] Docker image and Compose services.
 - [ ] Paper provider (Semantic Scholar / arXiv).
-- [ ] Optional CLI entry point as the sync boundary.
+- [ ] Scheduling, persistence, and delivery adapters.

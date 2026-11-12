@@ -151,6 +151,8 @@ class Aggregator:
         self,
         providers: Sequence[ProviderProtocol],
         max_concurrency: int = 10,
+        *,
+        raise_on_all_failed: bool = False,
     ) -> None:
         """Initialize the aggregator.
 
@@ -159,6 +161,9 @@ class Aggregator:
                 articles with equal timestamps and de-duplication precedence.
             max_concurrency: Maximum number of provider calls in flight at
                 once. Must be at least 1.
+            raise_on_all_failed: When ``True``, re-raise the first provider
+                exception if every provider fails. The default keeps partial
+                and total failures non-fatal for batch callers.
 
         Raises:
             ValueError: If ``max_concurrency`` is less than 1.
@@ -167,6 +172,7 @@ class Aggregator:
             raise ValueError("max_concurrency must be at least 1")
         self._providers = tuple(providers)
         self._semaphore = asyncio.Semaphore(max_concurrency)
+        self._raise_on_all_failed = raise_on_all_failed
 
     async def aggregate(self, limit: int = 50, **filters: Any) -> list[Article]:
         """Aggregate articles from every provider.
@@ -183,6 +189,11 @@ class Aggregator:
         Returns:
             De-duplicated articles sorted by ``published_at`` descending, with
             articles lacking a timestamp last.
+
+        Raises:
+            Exception: The first provider exception when ``raise_on_all_failed``
+                is enabled and every provider failed. Individual failures are
+                otherwise logged and skipped.
         """
         results = await asyncio.gather(
             *(self._run(provider, limit, filters) for provider in self._providers),
@@ -190,8 +201,10 @@ class Aggregator:
         )
 
         merged: dict[str, Article] = {}
+        failures: list[BaseException] = []
         for provider, result in zip(self._providers, results, strict=True):
             if isinstance(result, BaseException):
+                failures.append(result)
                 logger.warning(
                     "Provider %r failed during aggregation: %r",
                     provider,
@@ -214,6 +227,8 @@ class Aggregator:
                     merged[key] = article
 
         ordered = sorted(merged.values(), key=_sort_key, reverse=True)
+        if self._raise_on_all_failed and self._providers and len(failures) == len(self._providers):
+            raise failures[0]
         return ordered[: max(limit, 0)]
 
     async def _run(
