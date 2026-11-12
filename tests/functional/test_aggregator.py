@@ -7,7 +7,6 @@ dependence on the concrete provider implementations.
 from __future__ import annotations
 
 import asyncio
-import time
 import unittest
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
@@ -177,6 +176,13 @@ class AggregatorOrderingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([article.id for article in articles], ["ok"])
         self.assertIn("failed during aggregation", "\n".join(captured.output))
 
+    async def test_raises_first_error_when_all_providers_fail(self) -> None:
+        """Opt-in strict mode surfaces the first provider failure."""
+        failing = FakeProvider([], error=RuntimeError("boom"))
+
+        with self.assertRaises(RuntimeError):
+            await Aggregator([failing], raise_on_all_failed=True).aggregate()
+
     async def test_returns_empty_list_when_all_providers_are_empty(self) -> None:
         """No articles anywhere yields an empty list, not an error."""
         articles = await Aggregator([FakeProvider([]), FakeProvider([])]).aggregate()
@@ -211,16 +217,27 @@ class AggregatorOrderingTests(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_provider_calls_run_concurrently(self) -> None:
-        """Wall clock is ~max provider latency, not the sum of latencies."""
-        slow_one = FakeProvider([make_article("a")], delay=0.05)
-        slow_two = FakeProvider([make_article("b")], delay=0.05)
+        """Both providers are in flight before either one returns."""
+        started: list[str] = []
+        both_started = asyncio.Event()
 
-        started = time.perf_counter()
-        articles = await Aggregator([slow_one, slow_two]).aggregate()
-        elapsed = time.perf_counter() - started
+        class SyncProvider:
+            """Provider that blocks until both providers have started."""
+
+            def __init__(self, article_id: str) -> None:
+                self._article_id = article_id
+
+            async def fetch_articles(self, limit: int = 10, **kwargs: Any) -> list[Article]:
+                started.append(self._article_id)
+                if len(started) == 2:
+                    both_started.set()
+                await asyncio.wait_for(both_started.wait(), timeout=1.0)
+                return [make_article(self._article_id)]
+
+        articles = await Aggregator([SyncProvider("a"), SyncProvider("b")]).aggregate()
 
         self.assertEqual(len(articles), 2)
-        self.assertLess(elapsed, 0.09)
+        self.assertEqual(sorted(started), ["a", "b"])
 
     def test_rejects_non_positive_max_concurrency(self) -> None:
         """Invalid concurrency bounds fail fast."""

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-news-aggregator"
-version = "0.2.0"
+version = "0.3.0"
 description = "Async-first AI news aggregation library and CLI."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -20,6 +20,9 @@ dev = [
     "coverage>=7.6",
     "pip-audit>=2.7",
 ]
+
+[project.scripts]
+ai-news-aggregator = "Articles.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["Articles"]

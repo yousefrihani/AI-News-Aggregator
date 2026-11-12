@@ -4,6 +4,25 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-11-12
+
+### Added
+
+- `python -m Articles` CLI (`Articles.cli`) with `--limit`, `--topic`,
+  `--query`, `--json`, and `--verbose`; exits `2` on missing credentials or a
+  provider error.
+- `Aggregator(..., raise_on_all_failed=True)` so batch callers can surface a
+  total provider outage instead of silently returning an empty list.
+- Multi-stage `Dockerfile` (`runtime` and `test` targets), `.dockerignore`, and
+  `docker-compose.yml` with non-root, read-only runtime hardening.
+- Containerised offline test service (`docker compose --profile test`).
+
+### Changed
+
+- Raised the package version to `0.3.0` and documented the Docker workflow.
+- Corrected the environment-variable docs to the `AI_NEWS_*` names actually
+  read by `Articles.config`.
+
 ## [0.2.0] - 2026-11-12
 
 ### Added
@@ -38,4 +57,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provider failures raise typed exceptions instead of printing and returning
   `None` on auth/config errors.
 
+[0.3.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.3.0
 [0.2.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.2.0
