@@ -3,7 +3,14 @@
 import unittest
 from datetime import UTC, datetime
 
-from Articles.graph.base import Chunk, Entity, GraphContext, Mention, Relation
+from Articles.graph.base import (
+    Chunk,
+    Entity,
+    GraphContext,
+    Mention,
+    Relation,
+    article_content_hash,
+)
 from Articles.graph.errors import GraphConfigError
 from Articles.graph.memory import InMemoryGraphStore
 from Articles.Models import Article
@@ -130,6 +137,35 @@ class TestArticleUpsert(unittest.IsolatedAsyncioTestCase):
             len(await store.vector_search((1.0, 0.0), 1, filters={"source": "old"})),
             0,
         )
+
+
+class TestArticleHashes(unittest.IsolatedAsyncioTestCase):
+    """Stored content hash lookup used by pipeline idempotency."""
+
+    async def test_returns_hashes_for_known_articles_only(self) -> None:
+        store = InMemoryGraphStore()
+        article = make_article("a1")
+        await store.upsert_articles([article], [make_chunk("c1")])
+
+        hashes = await store.article_hashes(["a1", "missing"])
+
+        self.assertEqual(hashes, {"a1": article_content_hash(article)})
+
+    async def test_hash_changes_with_content(self) -> None:
+        store = InMemoryGraphStore()
+        await store.upsert_articles([make_article("a1")], [make_chunk("c1")])
+        await store.upsert_articles(
+            [make_article("a1", title="Different")],
+            [make_chunk("c1")],
+        )
+
+        hashes = await store.article_hashes(["a1"])
+
+        self.assertNotEqual(hashes["a1"], article_content_hash(make_article("a1")))
+
+    async def test_empty_input_returns_empty_mapping(self) -> None:
+        store = InMemoryGraphStore()
+        self.assertEqual(await store.article_hashes([]), {})
 
 
 class TestEntityUpsert(unittest.IsolatedAsyncioTestCase):

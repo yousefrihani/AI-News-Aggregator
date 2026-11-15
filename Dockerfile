@@ -43,7 +43,7 @@ RUN uv sync --frozen --no-dev --no-install-project \
 FROM python:${PYTHON_VERSION}-slim AS runtime
 
 LABEL org.opencontainers.image.title="ai-news-aggregator" \
-      org.opencontainers.image.version="0.5.0" \
+      org.opencontainers.image.version="0.6.0" \
       org.opencontainers.image.description="Async AI news and paper aggregation"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -72,7 +72,7 @@ CMD ["--limit", "20"]
 FROM python:${PYTHON_VERSION}-slim AS runtime-graph
 
 LABEL org.opencontainers.image.title="ai-news-aggregator-graph" \
-      org.opencontainers.image.version="0.5.0" \
+      org.opencontainers.image.version="0.6.0" \
       org.opencontainers.image.description="AI news aggregation with Graph RAG"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

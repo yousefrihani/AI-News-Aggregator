@@ -4,6 +4,32 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-11-15
+
+### Added
+
+- LLM pattern layer (`Articles.llm.patterns`): `Pattern`/`PatternContext`/
+  `PatternRegistry`, a shared `SingleShotPattern` template, and typed
+  `summarize`, `classify`, and `graph_extraction.v1` extraction patterns.
+- Structured classification with candidate-label filtering, primary-label
+  selection, and rationales; extraction validates entities, relations, and
+  mentions, clamps confidence, drops unknown references, and makes one repair
+  call after invalid JSON.
+- `EnrichmentPipeline` (`Articles.pipeline`) that chunks article text, runs
+  summarize/classify/extract concurrently, embeds chunks in batches of at most
+  64, and writes entities, relations, mentions, articles, and chunks.
+- Content-hash idempotency via `GraphStore.article_hashes`: unchanged articles
+  are skipped without any provider or embedding work, while changed articles
+  are reprocessed.
+- `PipelineReport` with per-article enrichments, skipped identifiers, and
+  isolated failures tagged by stage.
+
+### Changed
+
+- Neo4j mention writes use `MERGE` on chunk stubs so mentions can be stored
+  before the article and chunk rows, keeping content-hash recording last.
+- Raised the package version to `0.6.0`.
+
 ## [0.5.0] - 2026-11-15
 
 ### Added
@@ -103,6 +129,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provider failures raise typed exceptions instead of printing and returning
   `None` on auth/config errors.
 
+[0.6.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.6.0
 [0.5.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.5.0
 [0.4.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.4.0
 [0.3.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.3.0

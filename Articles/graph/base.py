@@ -233,6 +233,20 @@ class GraphStore(Protocol):
             mentions: Chunk-to-entity links to add.
         """
 
+    async def article_hashes(self, article_ids: Sequence[str]) -> dict[str, str]:
+        """Return stored content hashes for known article identifiers.
+
+        The pipeline uses this lookup to skip articles whose normalized content
+        has not changed since the last successful ingest.
+
+        Args:
+            article_ids: Identifiers to look up. Unknown identifiers are
+                omitted from the result.
+
+        Returns:
+            A mapping of article identifier to content hash.
+        """
+
     async def vector_search(
         self,
         embedding: Sequence[float],

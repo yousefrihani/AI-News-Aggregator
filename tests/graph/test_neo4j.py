@@ -352,6 +352,37 @@ class TestUpserts(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(driver.calls, [])
 
 
+class TestArticleHashes(unittest.IsolatedAsyncioTestCase):
+    """Batched content hash lookups against stored articles."""
+
+    async def test_returns_hash_map(self) -> None:
+        driver = FakeDriver(
+            responses=[[{"id": "a1", "content_hash": "hash1"}, {"id": "a2", "content_hash": "h2"}]]
+        )
+        hashes = await make_store(driver).article_hashes(["a1", "a2", "missing"])
+        self.assertEqual(hashes, {"a1": "hash1", "a2": "h2"})
+        query, parameters = driver.calls[0]
+        self.assertIn("content_hash", query)
+        self.assertEqual(parameters["article_ids"], ["a1", "a2", "missing"])
+
+    async def test_deduplicates_ids_and_skips_empty(self) -> None:
+        driver = FakeDriver()
+        hashes = await make_store(driver).article_hashes([])
+        self.assertEqual(hashes, {})
+        self.assertEqual(driver.calls, [])
+
+    async def test_batches_ids(self) -> None:
+        driver = FakeDriver(responses=[[] for _ in range(2)])
+        store = make_store(driver)
+        await store.article_hashes([f"a{index}" for index in range(501)])
+        self.assertEqual([len(params["article_ids"]) for _, params in driver.calls], [500, 1])
+
+    async def test_malformed_record_raises(self) -> None:
+        driver = FakeDriver(responses=[[{"id": "a1"}]])
+        with self.assertRaises(GraphQueryError):
+            await make_store(driver).article_hashes(["a1"])
+
+
 class TestVectorSearch(unittest.IsolatedAsyncioTestCase):
     """Vector-index query parameters, parsing, and validation."""
 

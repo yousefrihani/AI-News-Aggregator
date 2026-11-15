@@ -200,13 +200,50 @@ Local embeddings default to `BAAI/bge-small-en-v1.5` at 384 dimensions through
 recreating the index. `EMBEDDING_PROVIDER=deterministic` keeps tests and
 offline development dependency-free.
 
+## Enrichment pipeline
+
+`Articles.pipeline.EnrichmentPipeline` turns articles into graph-ready records:
+it chunks the text, summarizes and classifies it through LLM routes, extracts
+entities/relations with the `graph_extraction.v1` schema, embeds chunks locally,
+and writes everything in bounded batches.
+
+```python
+import asyncio
+
+from Articles.graph import DeterministicEmbedding, InMemoryGraphStore
+from Articles.llm import LLMRouter, load_llm_config
+from Articles.pipeline import EnrichmentPipeline
+
+
+async def main(articles) -> None:
+    router = LLMRouter(load_llm_config("config/llm_routes.yaml"))
+    pipeline = EnrichmentPipeline(
+        router,
+        InMemoryGraphStore(),
+        DeterministicEmbedding(dim=384),
+    )
+    report = await pipeline.process(articles)
+    print(report.succeeded_count, report.skipped_count, report.failed_count)
+
+
+asyncio.run(main(articles))
+```
+
+Re-running over unchanged articles is a no-op: the store keeps each article's
+normalized content hash, and only new or changed articles call a provider.
+Failures are isolated per article and reported by stage (`summarize`,
+`classify`, `extract`, `embed`, or `store`) without aborting the run.
+`chunk_tokens`, `chunk_overlap`, `embedding_batch_size`, `write_batch_size`, and
+`max_concurrency` are constructor settings; chunk writes stay below the
+embedding batch limit of 64 by default.
+
 ## Docker
 
 Build and run the runtime image:
 
 ```bash
-docker build -t ai-news-aggregator:0.5.0 .
-docker run --rm --env-file .env ai-news-aggregator:0.5.0 --limit 10 --json
+docker build -t ai-news-aggregator:0.6.0 .
+docker run --rm --env-file .env ai-news-aggregator:0.6.0 --limit 10 --json
 ```
 
 Or use Compose (it reads `.env` for interpolation; no secrets are baked in):
@@ -297,7 +334,8 @@ placeholders only.
 - [x] Docker image and Compose services.
 - [x] LLM routing with Groq/OpenRouter, fallback, pins, and offline tests.
 - [x] Graph store (in-memory + Neo4j), local embeddings, and Docker graph profiles.
-- [ ] Enrichment pipeline and Graph RAG retrieval/answer patterns.
+- [x] Enrichment pipeline with idempotent re-runs and per-article failure reports.
+- [ ] Graph RAG retrieval/answer patterns and citations.
 - [ ] Agent seam for the custom workflow specification.
 - [ ] Paper provider (Semantic Scholar / arXiv).
 - [ ] Scheduling, persistence, and delivery adapters.

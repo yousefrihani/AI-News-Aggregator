@@ -63,6 +63,13 @@ SET a.title = row.title,
     a.content_hash = row.content_hash
 """
 
+_ARTICLE_HASH_QUERY = """
+UNWIND $article_ids AS article_id
+MATCH (a:Article {id: article_id})
+WHERE a.content_hash IS NOT NULL
+RETURN a.id AS id, a.content_hash AS content_hash
+"""
+
 _TOPIC_QUERY = """
 UNWIND $rows AS row
 UNWIND row.topics AS topic
@@ -118,7 +125,7 @@ SET r.confidence = row.confidence,
 
 _MENTION_QUERY = """
 UNWIND $rows AS row
-MATCH (c:Chunk {id: row.chunk_id})
+MERGE (c:Chunk {id: row.chunk_id})
 MATCH (e:Entity {id: row.entity_id})
 MERGE (c)-[:MENTIONS]->(e)
 """
@@ -647,6 +654,30 @@ class Neo4jGraphStore:
                 await result
         except Exception as err:
             raise _map_error(err, "Neo4j driver close") from err
+
+    async def article_hashes(self, article_ids: Sequence[str]) -> dict[str, str]:
+        """Return stored content hashes for known articles.
+
+        Args:
+            article_ids: Identifiers to look up.
+
+        Returns:
+            A mapping of known article identifier to content hash.
+
+        Raises:
+            GraphQueryError: If a returned record is malformed.
+        """
+        hashes: dict[str, str] = {}
+        for batch in batch_iterable(list(dict.fromkeys(article_ids))):
+            records = await self._run(_ARTICLE_HASH_QUERY, {"article_ids": batch})
+            for record in records:
+                data = _record_mapping(record)
+                article_id = data.get("id")
+                content_hash = data.get("content_hash")
+                if not isinstance(article_id, str) or not isinstance(content_hash, str):
+                    raise GraphQueryError("invalid article hash record")
+                hashes[article_id] = content_hash
+        return hashes
 
     async def upsert_articles(
         self,

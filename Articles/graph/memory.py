@@ -16,6 +16,7 @@ from Articles.graph.base import (
     GraphContext,
     Mention,
     Relation,
+    article_content_hash,
     relation_key,
     validate_filters,
 )
@@ -136,6 +137,22 @@ class InMemoryGraphStore:
         return not (
             "topic" in filters and (article is None or filters["topic"] not in article.topics)
         )
+
+    async def article_hashes(self, article_ids: Sequence[str]) -> dict[str, str]:
+        """Return stored content hashes for known articles.
+
+        Args:
+            article_ids: Identifiers to look up.
+
+        Returns:
+            A mapping of known article identifier to content hash.
+        """
+        hashes: dict[str, str] = {}
+        for article_id in article_ids:
+            article = self._articles.get(article_id)
+            if article is not None:
+                hashes[article_id] = article_content_hash(article)
+        return hashes
 
     async def vector_search(
         self,
