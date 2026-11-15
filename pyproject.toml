@@ -4,13 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-news-aggregator"
-version = "0.3.0"
+version = "0.4.0"
 description = "Async-first AI news aggregation library and CLI."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "httpx>=0.27",
     "python-dotenv>=1.0",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -19,6 +20,13 @@ dev = [
     "mypy>=1.11",
     "coverage>=7.6",
     "pip-audit>=2.7",
+    "types-pyyaml>=6.0.12",
+]
+graph = [
+    "neo4j>=5.20",
+]
+embeddings-local = [
+    "fastembed>=0.4",
 ]
 
 [project.scripts]

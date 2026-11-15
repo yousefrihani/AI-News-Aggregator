@@ -4,6 +4,27 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-11-15
+
+### Added
+
+- Provider-agnostic LLM layer (`Articles.llm`): `LLMProvider` port,
+  OpenAI-compatible transport, and Groq/OpenRouter adapters.
+- YAML route configuration (`config/llm_routes.example.yaml`) with ordered
+  provider/model candidates, JSON response modes, retries, timeouts, input
+  limits, and per-route token budgets.
+- `LLMRouter` with health-aware candidate selection, typed error mapping,
+  circuit breakers, deterministic caching, dry-run mode, and explicit
+  provider/model pins (`AI_NEWS_LLM_PROVIDER`/`AI_NEWS_LLM_MODEL`).
+- `ProviderRegistry` for built-in adapters and entry-point plugins, so future
+  providers can be added without changing routing or call sites.
+- Hermetic LLM suite using `httpx.MockTransport`, scripted providers, and an
+  injected clock/sleep; no keys or real backoff in tests.
+
+### Changed
+
+- Raised the package version to `0.4.0`; added `pyyaml` and `types-pyyaml`.
+
 ## [0.3.0] - 2026-11-12
 
 ### Added
@@ -57,5 +78,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provider failures raise typed exceptions instead of printing and returning
   `None` on auth/config errors.
 
+[0.4.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.4.0
 [0.3.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.3.0
 [0.2.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.2.0

@@ -25,7 +25,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 FROM python:${PYTHON_VERSION}-slim AS runtime
 
 LABEL org.opencontainers.image.title="ai-news-aggregator" \
-      org.opencontainers.image.version="0.3.0" \
+      org.opencontainers.image.version="0.4.0" \
       org.opencontainers.image.description="Async AI news and paper aggregation"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
