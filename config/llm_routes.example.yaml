@@ -67,7 +67,8 @@ routes:
     retries: 2
     max_input_tokens: 8000
 
-  # Reserved for the custom agent workflow. Wired in v0.7.
+  # Routes consumed by the custom agent workflow. The runtime seam ships in
+  # v0.7; the workflow itself is supplied separately.
   agent.planner:
     candidates: [openrouter/reasoning, openrouter/balanced, groq/fast]
     max_tokens: 800

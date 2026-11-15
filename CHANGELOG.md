@@ -4,6 +4,24 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-11-15
+
+### Added
+
+- Agent runtime seam (`Articles.agents`): `AgentStep`, `StepContext`,
+  `StepOutcome`, `Tool`, `ToolResult`, `Budget`, `BudgetSnapshot`,
+  `Checkpoint`, `CheckpointStore`, `AgentRuntime`, and `AgentResult`.
+- Typed agent errors for configuration, budgets, tools, and checkpoints.
+- `SingleStepRuntime`, a protocol-conformance reference that runs one step,
+  enforces the budget, and saves or replays checkpoints. It is a test fixture,
+  not a production workflow.
+
+### Changed
+
+- Agent routes remain reserved in `config/llm_routes.example.yaml`; no
+  production workflow, API server, or agent framework dependency was added.
+- Raised the package version to `0.7.0`.
+
 ## [0.6.1] - 2026-11-15
 
 ### Added
@@ -151,6 +169,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provider failures raise typed exceptions instead of printing and returning
   `None` on auth/config errors.
 
+[0.7.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.7.0
 [0.6.1]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.6.1
 [0.6.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.6.0
 [0.5.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.5.0

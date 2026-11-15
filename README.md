@@ -33,6 +33,9 @@ Provider.fetch_articles() -> list[Article] -> Aggregator -> dedupe -> sort -> li
   provider/model candidates and never exposes vendor details upstream.
 - **Graph layer** (`Articles.graph`): a `GraphStore` port with in-memory and
   Neo4j adapters, local `fastembed` embeddings, and a versioned schema.
+- **Agent seam** (`Articles.agents`): protocols for workflows, steps, tools,
+  budgets, and checkpoints, plus a reference single-step runtime. The custom
+  workflow itself is supplied separately.
 
 Key design rules: HTTP lives only in providers, constructors never perform
 network I/O, and library code is async-first (the CLI is the only sync boundary).
@@ -289,13 +292,50 @@ RUN_EVAL=1 python -m unittest tests.eval.graph_rag.test_eval
 
 The metric helpers themselves are covered by the default offline suite.
 
+## Agent runtime seam
+
+`Articles.agents` is a design seam, not an agent implementation. It freezes the
+contracts a custom workflow codes against, without adding LangGraph or any
+other framework:
+
+- `AgentStep` / `StepOutcome` — one async state transition at a time.
+- `Tool` / `ToolResult` — callable tools with text observations and metadata.
+- `Budget` / `BudgetSnapshot` — step, token, and tool-call limits enforced by
+  the runtime and visible to every step.
+- `CheckpointStore` — async save/load port for replay and recovery.
+- `AgentRuntime` / `AgentResult` — the entry point and its final state, steps,
+  usage, and budget snapshot.
+- `SingleStepRuntime` — a reference runtime used by the tests, not a production
+  workflow.
+
+```python
+from Articles.agents import AgentRuntime, SingleStepRuntime, StepContext, StepOutcome
+
+
+class SummarizeStep:
+    name = "summarize"
+
+    async def run(self, state: dict[str, str], context: StepContext) -> StepOutcome[dict[str, str]]:
+        return StepOutcome({"answer": state["question"]}, done=True)
+
+
+runtime: AgentRuntime[dict[str, str]] = SingleStepRuntime(SummarizeStep())
+result = await runtime.run({"question": "What happened?"}, run_id="demo-1")
+print(result.state, result.completed, result.budget)
+```
+
+Steps receive routes through the narrow `CompletionRouter` protocol, so the
+workflow never names a provider. LLM calls consume the shared token budget.
+A production workflow and API server are intentionally out of scope until the
+custom state/step/tool contract is supplied.
+
 ## Docker
 
 Build and run the runtime image:
 
 ```bash
-docker build -t ai-news-aggregator:0.6.1 .
-docker run --rm --env-file .env ai-news-aggregator:0.6.1 --limit 10 --json
+docker build -t ai-news-aggregator:0.7.0 .
+docker run --rm --env-file .env ai-news-aggregator:0.7.0 --limit 10 --json
 ```
 
 Or use Compose (it reads `.env` for interpolation; no secrets are baked in):
@@ -389,6 +429,7 @@ placeholders only.
 - [x] Graph store (in-memory + Neo4j), local embeddings, and Docker graph profiles.
 - [x] Enrichment pipeline with idempotent re-runs and per-article failure reports.
 - [x] Graph RAG retrieval, cited answers, and the offline evaluation harness.
-- [ ] Agent seam for the custom workflow specification.
+- [x] Agent runtime seam with protocol-only steps, tools, budgets, and checkpoints.
+- [ ] Custom agent workflow (blocked on the workflow specification).
 - [ ] Paper provider (Semantic Scholar / arXiv).
 - [ ] Scheduling, persistence, and delivery adapters.

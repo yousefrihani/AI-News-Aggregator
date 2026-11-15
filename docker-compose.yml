@@ -5,7 +5,7 @@ services:
     build:
       context: .
       target: runtime
-    image: ai-news-aggregator:${IMAGE_TAG:-0.6.1}
+    image: ai-news-aggregator:${IMAGE_TAG:-0.7.0}
     init: true
     read_only: true
     tmpfs:
@@ -81,7 +81,7 @@ services:
     build:
       context: .
       target: runtime-graph
-    image: ai-news-aggregator:${IMAGE_TAG:-0.6.1}-graph
+    image: ai-news-aggregator:${IMAGE_TAG:-0.7.0}-graph
     init: true
     read_only: true
     tmpfs:
