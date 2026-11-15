@@ -33,6 +33,11 @@ from Articles.graph.errors import (
 )
 from Articles.graph.memory import InMemoryGraphStore
 from Articles.graph.neo4j import Neo4jGraphStore
+from Articles.graph.retriever import (
+    Citation,
+    GraphRAGRetriever,
+    RetrievedContext,
+)
 from Articles.graph.schema import (
     CONSTRAINTS,
     INDEXES,
@@ -48,6 +53,7 @@ __all__ = [
     "SCHEMA_STATEMENTS",
     "SCHEMA_VERSION",
     "Chunk",
+    "Citation",
     "DeterministicEmbedding",
     "EmbeddingDimensionError",
     "EmbeddingError",
@@ -60,12 +66,14 @@ __all__ = [
     "GraphContext",
     "GraphError",
     "GraphQueryError",
+    "GraphRAGRetriever",
     "GraphSettings",
     "GraphStore",
     "InMemoryGraphStore",
     "Mention",
     "Neo4jGraphStore",
     "Relation",
+    "RetrievedContext",
     "article_content_hash",
     "chunk_id_for",
     "entity_id_for",

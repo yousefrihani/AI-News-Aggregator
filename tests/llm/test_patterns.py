@@ -144,7 +144,7 @@ class TestPatternRegistry(unittest.TestCase):
         registry = PatternRegistry.with_defaults()
         self.assertEqual(
             registry.names(),
-            ("classify", "extract_graph", "summarize"),
+            ("classify", "extract_graph", "graph_rag", "summarize"),
         )
 
     def test_create_unknown_pattern(self) -> None:

@@ -4,6 +4,28 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-11-15
+
+### Added
+
+- `GraphRAGRetriever` (`Articles.graph.retriever`): embeds a question, runs a
+  bounded vector search (`k=8`), expands one or two hops through graph
+  mentions and relations, and renders a character-capped context block with
+  stable article citations.
+- `GraphRAGAnswerPattern` (`Articles.llm.patterns.graph_rag`) on the new
+  `graph_rag` route: constrained answer generation with `[article_id]`
+  citations, resolved citations in first-use order, and hallucinated
+  identifiers isolated in `unknown_citations`.
+- Offline Graph RAG evaluation harness (`tests/eval/graph_rag/`) with 21 golden
+  questions, deterministic bag-of-words embeddings, recall@8 and citation
+  precision metrics, and recorded answers; opt in with `RUN_EVAL=1`.
+
+### Changed
+
+- Registered `graph_rag` in `PatternRegistry.with_defaults()` and exported the
+  retriever, citation models, and answer pattern from the public packages.
+- Raised the package version to `0.6.1`.
+
 ## [0.6.0] - 2026-11-15
 
 ### Added
@@ -129,6 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provider failures raise typed exceptions instead of printing and returning
   `None` on auth/config errors.
 
+[0.6.1]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.6.1
 [0.6.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.6.0
 [0.5.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.5.0
 [0.4.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.4.0

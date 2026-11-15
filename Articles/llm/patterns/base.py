@@ -230,12 +230,14 @@ class PatternRegistry:
         """
         from Articles.llm.patterns.classify import ClassifyPattern
         from Articles.llm.patterns.extract_graph import ExtractGraphPattern
+        from Articles.llm.patterns.graph_rag import GraphRAGAnswerPattern
         from Articles.llm.patterns.summarize import SummarizePattern
 
         registry = cls()
         registry.register("summarize", SummarizePattern)
         registry.register("classify", ClassifyPattern)
         registry.register("extract_graph", ExtractGraphPattern)
+        registry.register("graph_rag", GraphRAGAnswerPattern)
         return registry
 
 

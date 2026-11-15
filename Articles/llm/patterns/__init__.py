@@ -24,6 +24,7 @@ from Articles.llm.patterns.extract_graph import (
     GraphExtraction,
     parse_graph_extraction,
 )
+from Articles.llm.patterns.graph_rag import GraphRAGAnswer, GraphRAGAnswerPattern, parse_citations
 from Articles.llm.patterns.summarize import SummarizePattern
 
 __all__ = [
@@ -37,11 +38,14 @@ __all__ = [
     "GRAPH_EXTRACTION_SCHEMA",
     "GRAPH_EXTRACTION_SCHEMA_REF",
     "GraphExtraction",
+    "GraphRAGAnswer",
+    "GraphRAGAnswerPattern",
     "Pattern",
     "PatternContext",
     "PatternRegistry",
     "SingleShotPattern",
     "SummarizePattern",
+    "parse_citations",
     "parse_classification",
     "parse_graph_extraction",
     "parse_json_object",

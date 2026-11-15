@@ -237,13 +237,65 @@ Failures are isolated per article and reported by stage (`summarize`,
 `max_concurrency` are constructor settings; chunk writes stay below the
 embedding batch limit of 64 by default.
 
+## Graph RAG retrieval
+
+`GraphRAGRetriever` embeds a question, fetches the top `k` chunks from the
+vector index, expands one or two hops through mentions and relations, and
+renders a bounded context block. Chunks are grouped under their article
+identifier, so answers cite stable `[article_id]` markers rather than opaque
+chunk UUIDs.
+
+```python
+import asyncio
+
+from Articles.graph import DeterministicEmbedding, GraphRAGRetriever, InMemoryGraphStore
+
+
+async def main(store: InMemoryGraphStore) -> None:
+    retriever = GraphRAGRetriever(store, DeterministicEmbedding(dim=384))
+    context = await retriever.retrieve("What did OpenAI announce?")
+    print(context.context_text)
+    print(context.article_ids)
+
+
+asyncio.run(main(store))
+```
+
+`GraphRAGAnswerPattern` turns that context into a cited answer through the
+`graph_rag` route:
+
+```python
+from Articles.llm.patterns import GraphRAGAnswerPattern
+
+answer = await GraphRAGAnswerPattern(router).run(question, context)
+print(answer.answer)
+print(answer.article_ids, answer.unknown_citations)
+```
+
+The pattern forbids outside knowledge in both the system and user prompts.
+Citations that do not match retrieved articles are removed from `citations`
+and surfaced in `unknown_citations`, so callers can log or reject ungrounded
+answers. Defaults are `k=8`, `depth=1`, `limit=20`, and
+`max_context_chars=12000`; `depth` must be 1 or 2.
+
+The evaluation harness lives in `tests/eval/graph_rag/`. It uses a fixed
+21-question corpus with recorded answers and deterministic bag-of-words
+embeddings, so it needs no API key and downloads no model. It gates recall@8
+at 0.8 and citation precision at 0.9:
+
+```bash
+RUN_EVAL=1 python -m unittest tests.eval.graph_rag.test_eval
+```
+
+The metric helpers themselves are covered by the default offline suite.
+
 ## Docker
 
 Build and run the runtime image:
 
 ```bash
-docker build -t ai-news-aggregator:0.6.0 .
-docker run --rm --env-file .env ai-news-aggregator:0.6.0 --limit 10 --json
+docker build -t ai-news-aggregator:0.6.1 .
+docker run --rm --env-file .env ai-news-aggregator:0.6.1 --limit 10 --json
 ```
 
 Or use Compose (it reads `.env` for interpolation; no secrets are baked in):
@@ -304,6 +356,7 @@ with a read-only root filesystem (`/tmp` is mounted as tmpfs by Compose).
 | `EMBEDDING_MODEL` | `BAAI/bge-small-en-v1.5` | Local embedding model. |
 | `EMBEDDING_DIM` | `384` | Must match the vector index. |
 | `RUN_GRAPH_TESTS` | `0` | Enable live Neo4j integration tests. |
+| `RUN_EVAL` | `0` | Enable the offline Graph RAG evaluation harness. |
 | `RUN_E2E` | `0` | Set to `1` to enable live end-to-end tests. |
 | `AI_NEWS_HTTP_TIMEOUT` | `10.0` | Read/write timeout in seconds. |
 | `AI_NEWS_MAX_CONCURRENCY` | `5` | Per-provider concurrent-request limit. |
@@ -335,7 +388,7 @@ placeholders only.
 - [x] LLM routing with Groq/OpenRouter, fallback, pins, and offline tests.
 - [x] Graph store (in-memory + Neo4j), local embeddings, and Docker graph profiles.
 - [x] Enrichment pipeline with idempotent re-runs and per-article failure reports.
-- [ ] Graph RAG retrieval/answer patterns and citations.
+- [x] Graph RAG retrieval, cited answers, and the offline evaluation harness.
 - [ ] Agent seam for the custom workflow specification.
 - [ ] Paper provider (Semantic Scholar / arXiv).
 - [ ] Scheduling, persistence, and delivery adapters.
