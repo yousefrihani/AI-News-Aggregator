@@ -5,7 +5,7 @@ services:
     build:
       context: .
       target: runtime
-    image: ai-news-aggregator:${IMAGE_TAG:-0.4.0}
+    image: ai-news-aggregator:${IMAGE_TAG:-0.5.0}
     init: true
     read_only: true
     tmpfs:
@@ -34,3 +34,114 @@ services:
     image: ai-news-aggregator:test
     init: true
     command: ["python", "-m", "tests.offline"]
+
+  # -------------------------------------------------------------------------
+  # Graph profile: local Neo4j, the graph runtime image, and opt-in Neo4j
+  # integration tests. Start with:
+  #   docker compose --profile graph up -d neo4j
+  #   docker compose --profile graph run --rm app-graph --limit 10 --json
+  # Reset all graph data with:
+  #   docker compose --profile graph down -v
+  # -------------------------------------------------------------------------
+  neo4j:
+    image: neo4j:5.26-community
+    profiles: ["graph"]
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?set NEO4J_PASSWORD}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?set NEO4J_PASSWORD}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1G
+      NEO4J_server_memory_pagecache_size: 512m
+    ports:
+      # Local development only: never bind the graph database to 0.0.0.0.
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "cypher-shell -u neo4j -p \"$${NEO4J_PASSWORD}\" 'RETURN 1' >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  app-graph:
+    profiles: ["graph"]
+    build:
+      context: .
+      target: runtime-graph
+    image: ai-news-aggregator:${IMAGE_TAG:-0.5.0}-graph
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      # Keep the local embedding model between runs instead of re-downloading.
+      - fastembed_cache:/tmp/.cache
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      FREENEWSAPI_API_KEY: ${FREENEWSAPI_API_KEY:-}
+      NEWS_API_KEY: ${NEWS_API_KEY:-}
+      NEWSAPI_KEY: ${NEWSAPI_KEY:-}
+      AI_NEWS_HTTP_TIMEOUT: ${AI_NEWS_HTTP_TIMEOUT:-10}
+      AI_NEWS_MAX_CONCURRENCY: ${AI_NEWS_MAX_CONCURRENCY:-5}
+      AI_NEWS_MAX_PAGES: ${AI_NEWS_MAX_PAGES:-10}
+      AI_NEWS_MAX_ITEMS: ${AI_NEWS_MAX_ITEMS:-500}
+      AI_NEWS_TOPICS: ${AI_NEWS_TOPICS:-technology}
+      GRAPH_BACKEND: neo4j
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?set NEO4J_PASSWORD}
+      NEO4J_DATABASE: ${NEO4J_DATABASE:-neo4j}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-fastembed}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-384}
+      AI_NEWS_LLM_ROUTES_FILE: /app/config/llm_routes.yaml
+      AI_NEWS_LLM_ROUTE: ${AI_NEWS_LLM_ROUTE:-summarize}
+      AI_NEWS_LLM_PROVIDER: ${AI_NEWS_LLM_PROVIDER:-}
+      AI_NEWS_LLM_MODEL: ${AI_NEWS_LLM_MODEL:-}
+      AI_NEWS_LLM_ALLOW_FALLBACK: ${AI_NEWS_LLM_ALLOW_FALLBACK:-0}
+      LLM_DRY_RUN: ${LLM_DRY_RUN:-0}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    command: ["--limit", "${ARTICLE_LIMIT:-20}", "--json"]
+    restart: "no"
+
+  test-graph:
+    profiles: ["test-graph"]
+    build:
+      context: .
+      target: test-graph
+    image: ai-news-aggregator:test-graph
+    init: true
+    tmpfs:
+      - /tmp
+    environment:
+      RUN_GRAPH_TESTS: "1"
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?set NEO4J_PASSWORD}
+      NEO4J_DATABASE: ${NEO4J_DATABASE:-neo4j}
+    depends_on:
+      neo4j:
+        condition: service_healthy
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  fastembed_cache:

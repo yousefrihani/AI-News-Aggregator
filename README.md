@@ -153,13 +153,60 @@ Adding a provider requires a YAML entry plus either the generic
 `ai_news_aggregator.llm_providers` group; the router and call sites stay
 unchanged.
 
+## Graph RAG
+
+`Articles.graph` exposes a `GraphStore` port with two adapters:
+
+- `InMemoryGraphStore` — dependency-free, deterministic, and used by the
+  default offline tests.
+- `Neo4jGraphStore` — the production adapter; the driver is imported lazily.
+
+```python
+import asyncio
+
+from Articles.graph import Chunk, InMemoryGraphStore, DeterministicEmbedding
+
+
+async def main() -> None:
+    store = InMemoryGraphStore()
+    embedder = DeterministicEmbedding(dim=384)
+    vector = (await embedder.embed(["A chunk about retrieval"]))[0]
+    chunk = Chunk(
+        id="chunk-1",
+        article_id="article-1",
+        ordinal=0,
+        text="A chunk about retrieval",
+        embedding=tuple(vector),
+    )
+    await store.upsert_articles([], [chunk])
+    results = await store.vector_search(vector, k=3, filters={"article_id": "article-1"})
+    print(results[0][0].id, results[0][1])
+    await store.aclose()
+
+
+asyncio.run(main())
+```
+
+For Neo4j, set `GRAPH_BACKEND=neo4j`, `NEO4J_URI`, `NEO4J_USER`, and
+`NEO4J_PASSWORD`, then apply the idempotent schema or let
+`Neo4jGraphStore.initialize()` do it on startup:
+
+```bash
+cypher-shell -u neo4j -p "$NEO4J_PASSWORD" -f config/graph_schema.cypher
+```
+
+Local embeddings default to `BAAI/bge-small-en-v1.5` at 384 dimensions through
+`fastembed`. `EMBEDDING_DIM` must match the vector index; changing it requires
+recreating the index. `EMBEDDING_PROVIDER=deterministic` keeps tests and
+offline development dependency-free.
+
 ## Docker
 
 Build and run the runtime image:
 
 ```bash
-docker build -t ai-news-aggregator:0.4.0 .
-docker run --rm --env-file .env ai-news-aggregator:0.4.0 --limit 10 --json
+docker build -t ai-news-aggregator:0.5.0 .
+docker run --rm --env-file .env ai-news-aggregator:0.5.0 --limit 10 --json
 ```
 
 Or use Compose (it reads `.env` for interpolation; no secrets are baked in):
@@ -171,7 +218,28 @@ docker compose run --rm app --limit 10 --json
 docker compose --profile test run --rm test
 ```
 
-The runtime image is multi-stage, runs as a non-root user, and is compatible
+Graph images and profiles are additive:
+
+```bash
+# Neo4j on 127.0.0.1 only; requires NEO4J_PASSWORD with no default
+docker compose --profile graph up -d neo4j
+docker compose --profile graph build app-graph
+docker compose --profile graph run --rm app-graph --limit 10 --json
+
+# live Neo4j integration tests
+docker compose --profile test-graph run --rm test-graph
+
+# reset graph data (named volumes)
+docker compose --profile graph down -v
+```
+
+`runtime-graph` adds the Neo4j driver, ONNX Runtime, and the embedding model
+runtime, so it is intentionally much larger than `runtime`. Copy
+`config/llm_routes.example.yaml` to `config/llm_routes.yaml` before building
+`app-graph`; the Compose service reads that path. The embedding model cache is
+kept in the `fastembed_cache` volume.
+
+The runtime images are multi-stage, run as a non-root user, and are compatible
 with a read-only root filesystem (`/tmp` is mounted as tmpfs by Compose).
 
 ## Environment variables
@@ -190,6 +258,15 @@ with a read-only root filesystem (`/tmp` is mounted as tmpfs by Compose).
 | `AI_NEWS_LLM_MODEL` | — | Pin a model alias or id. |
 | `AI_NEWS_LLM_ALLOW_FALLBACK` | `0` | Allow fallback when a provider is pinned. |
 | `LLM_DRY_RUN` | `0` | Fixture responses; never call a provider. |
+| `GRAPH_BACKEND` | `memory` | `memory` or `neo4j`. |
+| `NEO4J_URI` | `bolt://localhost:7687` | Graph connection URI. |
+| `NEO4J_USER` | `neo4j` | Graph user. |
+| `NEO4J_PASSWORD` | — | Required when `GRAPH_BACKEND=neo4j`. |
+| `NEO4J_DATABASE` | `neo4j` | Target database. |
+| `EMBEDDING_PROVIDER` | `fastembed` | `fastembed` or `deterministic`. |
+| `EMBEDDING_MODEL` | `BAAI/bge-small-en-v1.5` | Local embedding model. |
+| `EMBEDDING_DIM` | `384` | Must match the vector index. |
+| `RUN_GRAPH_TESTS` | `0` | Enable live Neo4j integration tests. |
 | `RUN_E2E` | `0` | Set to `1` to enable live end-to-end tests. |
 | `AI_NEWS_HTTP_TIMEOUT` | `10.0` | Read/write timeout in seconds. |
 | `AI_NEWS_MAX_CONCURRENCY` | `5` | Per-provider concurrent-request limit. |
@@ -219,7 +296,8 @@ placeholders only.
 - [x] CLI entry point as the sync boundary.
 - [x] Docker image and Compose services.
 - [x] LLM routing with Groq/OpenRouter, fallback, pins, and offline tests.
-- [ ] Graph RAG (Neo4j + local embeddings) and Docker graph profiles.
-- [ ] Enrichment pipeline, retrieval/answer patterns, and agent seam.
+- [x] Graph store (in-memory + Neo4j), local embeddings, and Docker graph profiles.
+- [ ] Enrichment pipeline and Graph RAG retrieval/answer patterns.
+- [ ] Agent seam for the custom workflow specification.
 - [ ] Paper provider (Semantic Scholar / arXiv).
 - [ ] Scheduling, persistence, and delivery adapters.

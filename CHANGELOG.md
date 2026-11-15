@@ -4,6 +4,31 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-11-15
+
+### Added
+
+- Graph layer (`Articles.graph`): immutable `Chunk`, `Entity`, `Relation`,
+  `Mention`, and `GraphContext` models plus the `GraphStore` port.
+- `InMemoryGraphStore` with deterministic upsert, filtered vector search, and
+  bounded expansion; used by the default offline suite.
+- `Neo4jGraphStore` with lazy driver import, batched writes, idempotent stale
+  chunk cleanup, filtered vector search, and bounded expansion.
+- Versioned, idempotent Neo4j schema (`config/graph_schema.cypher`) for
+  constraints, fulltext indexes, and the 384-d cosine vector index.
+- Local embeddings through `FastEmbedEmbedding` (`BAAI/bge-small-en-v1.5`)
+  plus a deterministic, dependency-free test embedder.
+- Docker `deps-graph`, `runtime-graph`, and `test-graph` targets, and Compose
+  `graph`/`test-graph` profiles with a pinned Neo4j 5.26 Community service.
+- Opt-in live Neo4j integration tests gated by `RUN_GRAPH_TESTS=1`.
+
+### Changed
+
+- The runtime image now ships the read-only `config/` directory (schema and
+  route examples); the default image remains graph-free.
+- Raised the package version to `0.5.0`; added `graph` and `embeddings-local`
+  optional extras.
+
 ## [0.4.0] - 2026-11-15
 
 ### Added
@@ -78,6 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provider failures raise typed exceptions instead of printing and returning
   `None` on auth/config errors.
 
+[0.5.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.5.0
 [0.4.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.4.0
 [0.3.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.3.0
 [0.2.0]: https://github.com/yousefrihani/AI-News-Aggregator/releases/tag/v0.2.0
