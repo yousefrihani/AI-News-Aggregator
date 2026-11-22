@@ -738,7 +738,12 @@ class LLMRouter:
         Returns:
             A response that never touched a provider.
         """
-        text = f"dry-run:{route}" if config.response_format == "text" else "{}"
+        if config.response_format == "text":
+            text = f"dry-run:{route}"
+        elif config.schema_ref == "graph_extraction.v1":
+            text = '{"entities": [], "relations": [], "mentions": []}'
+        else:
+            text = "{}"
         return CompletionResponse(text=text, provider="dry-run", model="dry-run")
 
     @staticmethod

@@ -20,6 +20,7 @@ The module never calls :func:`asyncio.run`; callers own the event loop.
 from __future__ import annotations
 
 import asyncio
+import importlib
 import json
 import logging
 import os
@@ -27,11 +28,12 @@ import random
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
+from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from types import MappingProxyType, TracebackType
-from typing import TYPE_CHECKING, Any, Literal, Self
+from typing import Any, Literal, Protocol, Self
 
 import httpx
 
@@ -42,10 +44,6 @@ from Articles.errors import (
 )
 from Articles.Models import Article
 
-if TYPE_CHECKING:
-    from Articles.cache import ConditionalHTTPCache
-    from Articles.quota import SQLiteQuotaGovernor
-
 try:  # pragma: no cover - optional convenience for local development
     from dotenv import load_dotenv
 
@@ -55,7 +53,83 @@ except ImportError:  # pragma: no cover - python-dotenv is optional at runtime
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["BaseProvider", "RawHTTPResponse"]
+__all__ = ["BaseProvider", "ConditionalHTTPCache", "RawHTTPResponse", "SQLiteQuotaGovernor"]
+
+
+class _HTTPCacheEntry(Protocol):
+    status_code: int
+    body: bytes
+    headers: Mapping[str, str]
+    etag: str | None
+    last_modified: str | None
+
+
+class _HTTPCacheLookup(Protocol):
+    key: str
+    entry: _HTTPCacheEntry | None
+    is_fresh: bool
+
+
+class ConditionalHTTPCache(Protocol):
+    """Structural contract for an optional conditional HTTP cache."""
+
+    async def lookup(
+        self,
+        method: str,
+        url: str,
+        *,
+        params: Mapping[str, Any],
+        body_bytes: bytes,
+        accept: str,
+    ) -> _HTTPCacheLookup: ...
+
+    async def touch(
+        self,
+        key: str,
+        *,
+        ttl_s: float,
+        response_headers: Mapping[str, str],
+    ) -> _HTTPCacheEntry | None: ...
+
+    async def store(
+        self,
+        key: str,
+        *,
+        status_code: int,
+        body: bytes,
+        headers: Mapping[str, str],
+        ttl_s: float,
+    ) -> None: ...
+
+
+class _QuotaLease(Protocol):
+    def mark_dispatched(self) -> None: ...
+
+    async def reconcile(self, tokens_used: int, snapshot: Any) -> None: ...
+
+
+class SQLiteQuotaGovernor(Protocol):
+    """Structural contract for an optional rate-limit / quota governor."""
+
+    def reserve(
+        self, provider: str, *, tokens: int = 0
+    ) -> AbstractAsyncContextManager[_QuotaLease]: ...
+
+
+def _parse_rate_limit_headers(headers: Mapping[str, str]) -> Any:
+    """Resolve ``Articles.quota.parse_rate_limit_headers`` if present, else return a header dict."""
+    try:
+        quota_mod = importlib.import_module("Articles.quota")
+        parser = getattr(quota_mod, "parse_rate_limit_headers", None)
+        if callable(parser):
+            return parser(headers)
+    except ModuleNotFoundError:
+        pass
+    return {
+        k.lower(): v
+        for k, v in headers.items()
+        if "ratelimit" in k.lower() or k.lower() == "retry-after"
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,9 +212,7 @@ class BaseProvider(ABC):
         )
         self._limits = httpx.Limits(max_connections=20, max_keepalive_connections=10)
         self._default_headers: dict[str, str] = {}
-        self.client = client or httpx.AsyncClient(
-            timeout=self._timeout_config, limits=self._limits
-        )
+        self.client = client or httpx.AsyncClient(timeout=self._timeout_config, limits=self._limits)
         self._sync_client: httpx.Client | None = sync_client
         self.http_cache = http_cache
         self.quota_governor = quota_governor
@@ -250,9 +322,7 @@ class BaseProvider(ABC):
             return retry_after
         return self._backoff_delay(attempt)
 
-    def _raise_for_error_status(
-        self, status: int, body_text: str, url: str
-    ) -> None:
+    def _raise_for_error_status(self, status: int, body_text: str, url: str) -> None:
         """Raise typed provider errors for 4xx/5xx responses."""
         provider = type(self).__name__
         if status in self.AUTH_STATUS_CODES:
@@ -354,8 +424,6 @@ class BaseProvider(ABC):
                 headers=headers,
                 json=json_body,
             )
-        from Articles.quota import parse_rate_limit_headers
-
         async with self.quota_governor.reserve(self.quota_provider, tokens=0) as lease:
             lease.mark_dispatched()
             response = await self.client.request(
@@ -365,7 +433,7 @@ class BaseProvider(ABC):
                 headers=headers,
                 json=json_body,
             )
-            snapshot = parse_rate_limit_headers(response.headers)
+            snapshot = _parse_rate_limit_headers(response.headers)
             await lease.reconcile(0, snapshot)
             return response
 
@@ -550,9 +618,8 @@ class BaseProvider(ABC):
     ) -> dict[str, Any]:
         """Execute an asynchronous HTTP request with retries and typed errors."""
         norm_method = method.upper()
-        if (
-            norm_method in ("GET", "POST")
-            and (self.http_cache is not None or self.quota_governor is not None)
+        if norm_method in ("GET", "POST") and (
+            self.http_cache is not None or self.quota_governor is not None
         ):
             method_lit: Literal["GET", "POST"] = "POST" if norm_method == "POST" else "GET"
             payload = await self._request_json_any(

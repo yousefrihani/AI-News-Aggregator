@@ -9,7 +9,7 @@ every marker maps back to retrieved content.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any
 
@@ -79,7 +79,7 @@ class RetrievedContext:
     relations: tuple[Relation, ...] = ()
     citations: tuple[Citation, ...] = ()
     context_text: str = ""
-    scores: Mapping[str, float] = MappingProxyType({})
+    scores: Mapping[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Freeze the score mapping.
